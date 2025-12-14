@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 3.14)
+project(DynamicLab CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(LIBRARY_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/lib") 
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}) 
+
+
+include_directories(include)
+
+add_library(first SHARED lib/first.cpp)
+set_target_properties(first PROPERTIES OUTPUT_NAME "library_first") 
+target_include_directories(first PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+add_library(second SHARED lib/second.cpp)
+set_target_properties(second PROPERTIES OUTPUT_NAME "library_second")
+target_include_directories(second PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+
+add_library(leibniz SHARED lib/leibniz.cpp)
+
+set_target_properties(leibniz PROPERTIES OUTPUT_NAME "library_leibniz")
+target_include_directories(leibniz PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+add_library(wallis SHARED lib/wallis.cpp)
+set_target_properties(wallis PROPERTIES OUTPUT_NAME "library_wallis")
+target_include_directories(wallis PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+add_executable(program1 program1.cpp)
+target_link_libraries(program1 PRIVATE first leibniz)
+target_link_directories(program1 PRIVATE ${LIBRARY_OUTPUT_PATH}) 
+add_library(dynamic_lib STATIC src/dynamic_library.cpp)
+add_executable(program2 program2.cpp)
+target_link_libraries(program2 PRIVATE dynamic_lib) 
+
+target_link_libraries(program2 PRIVATE dl)
