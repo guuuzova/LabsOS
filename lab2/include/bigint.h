@@ -1,24 +1,32 @@
 #pragma once
 
 #include <iostream>
+#include <vector>
 #include <string>
-#include <iomanip>
-#include <stdexcept>
+#include <cstdint>
+#include <mutex>
 
-struct BigInt {
-  private:
-    uint64_t parts[8];
-  public:
-    BigInt();
-    BigInt(const BigInt& other);
-    BigInt(BigInt&& other) noexcept;
-    BigInt& operator=(const BigInt& other) = default;
-    BigInt& operator=(BigInt&& other) noexcept;
-    ~BigInt() = default;
+namespace BigInt {
 
-    void Add(const BigInt& other);
-    uint64_t Divide(uint64_t divisor, BigInt& quotient) const;
-    void Round();
-    int ReadFromHex(const char* hex, size_t len);
-    void Print() const;
+constexpr int NUM = 8;
+
+class BigInt {
+private:
+    uint64_t data_[NUM] = {0};
+
+public:
+    BigInt() = default;
+    explicit BigInt(const std::string& hex_str);
+    BigInt& operator+=(const BigInt& other);
+    BigInt operator+(const BigInt& other) const;
+    void add_word(uint64_t word);
+    void divide_by_block(uint64_t divisor);
+    uint64_t divide_by_10();
+    std::string to_dec() const;
+    const uint64_t* getData() const {
+      return data_;
+    }
+    static std::mutex sum_mutex;
+    friend std::ostream& operator<<(std::ostream& os, const BigInt& big_int);
 };
+}

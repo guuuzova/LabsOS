@@ -1,102 +1,125 @@
 #include "bigint.h"
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
+#include <cmath>
 
+namespace BigInt {
 
-BigInt::BigInt() {
-    for (int i = 0; i < 8; i++) {
-        parts[i] = 0;
+BigInt::BigInt(const std::string& hex_str) {
+    std::string new_str = hex_str;
+    if (new_str.length() < NUM * sizeof(uint64_t) * 2) {
+        new_str.insert(0, NUM * sizeof(uint64_t) * 2 - new_str.length(), '0');
+    }
+    for (int i = 0; i < NUM; ++i) {
+        int start = new_str.length() - (i + 1) * 16;
+        std::string word_hex = new_str.substr(start, 16);
+        data_[i] = std::stoull(word_hex, nullptr, 16);
     }
 }
 
-BigInt::BigInt(const BigInt& other) {
-    for (int i = 0; i < 8; i++) {
-        parts[i] = other.parts[i];
-    }
-}
-
-BigInt::BigInt(BigInt&& other) noexcept {
-    for (int i = 0; i < 8; i++) {
-        parts[i] = other.parts[i];
-        other.parts[i] = 0;
-    }
-}
-
-
-BigInt& BigInt::operator=(BigInt&& other) noexcept {
-    if (this != &other) {
-        for (int i = 0; i < 8; i++) {
-            parts[i] = other.parts[i];
-            other.parts[i] = 0;
-        }
+BigInt& BigInt::operator+=(const BigInt& other) {
+    uint64_t carry = 0;
+    for (int i = 0; i < NUM; ++i) {
+        uint64_t sum = data_[i] + other.data_[i];
+        bool carry1 = (sum < data_[i]);
+        data_[i] = sum + carry;
+        bool carry2 = (data_[i] < sum);
+        carry = carry1 || carry2 ? 1 : 0;
     }
     return *this;
 }
 
-void BigInt::Add(const BigInt& other) {
-    uint64_t carry = 0;
-    for (int i = 7; i >= 0; --i) {
-        uint64_t a = parts[i];
-        uint64_t b = other.parts[i];
-        uint64_t sum_ab = a + b;
-        uint64_t carry1 = (sum_ab < a);
-        uint64_t sum = sum_ab + carry;
-        uint64_t carry2 = (sum < carry);        
-        carry = carry1 | carry2;
-        parts[i] = sum;
+BigInt BigInt::operator+(const BigInt& other) const {
+    BigInt result = *this;
+    result += other;
+    return result;
+}
+
+void BigInt::add_word(uint64_t word) {
+    if (word == 0) return;
+    uint64_t sum = data_[0] + word;
+    bool carry1 = (sum < data_[0]);
+    data_[0] = sum;
+    uint64_t carry = carry1 ? 1 : 0;
+    for (int i = 1; i < NUM && carry; ++i) {
+        data_[i] += carry;
+        if (data_[i] == 0) {
+            carry = 1;
+        } else {
+            carry = 0;
+        }
     }
 }
 
-int BigInt::ReadFromHex(const char* hex, size_t len) {
-    for (int i = 0; i < 8; ++i) {
-        parts[i] = 0;
+void BigInt::divide_by_block(uint64_t divisor) {
+    if (divisor == 0) {
+        throw std::runtime_error("Division by zero");
     }
-    int word_idx = 7;
-    int shift = 0;
-    for (size_t i = len; i > 0; --i) {
-        char c = hex[i - 1];
-        unsigned digit;
-        if (c >= '0' && c <= '9') {
-            digit = c - '0';
-        } else if (c >= 'a' && c <= 'f') {
-            digit = c - 'a' + 10;
-        } else {
-            return -1;
+    uint64_t remainder = 0;
+    for (int i = NUM - 1; i >= 0; --i) {
+        __uint128_t current_part = ((__uint128_t)remainder << 64) | data_[i];
+        data_[i] = (uint64_t)(current_part / divisor);
+        remainder = (uint64_t)(current_part % divisor);
+    }
+}
+
+std::ostream& operator<<(std::ostream& os, const BigInt& big_int) {
+    int first_nonzero = -1;
+    for (int i = NUM - 1; i >= 0; --i) {
+        if (big_int.data_[i] != 0) {
+            first_nonzero = i;
+            break;
         }
-        parts[word_idx] |= static_cast<uint64_t>(digit) << shift;
-        shift += 4;
-        if (shift == 64) {
-            shift = 0;
-            --word_idx;
-            if (word_idx < 0) {
-                break; 
+    }
+    if (first_nonzero == -1) {
+        return os << "0";
+    }
+    os << std::hex << big_int.data_[first_nonzero];
+    for (int i = first_nonzero - 1; i >= 0; --i) {
+        os << std::setw(16) << std::setfill('0') << big_int.data_[i];
+    }
+    os << std::dec;
+    return os;
+}
+
+uint64_t BigInt::divide_by_10() {
+    const uint64_t divisor = 10;
+    uint64_t remainder = 0;
+    for (int i = NUM - 1; i >= 0; --i) {
+        __uint128_t current_part = ((__uint128_t)remainder << 64) | data_[i];
+        data_[i] = (uint64_t)(current_part / divisor);
+        remainder = (uint64_t)(current_part % divisor);
+    }
+    return remainder; 
+}
+
+std::string BigInt::to_dec() const {
+    BigInt temp = *this;
+    bool is_zero = true;
+    for (int i = 0; i < NUM; ++i) {
+        if (temp.data_[i] != 0) {
+            is_zero = false;
+            break;
+        }
+    }
+    if (is_zero) {
+        return "0";
+    }
+    std::string result;
+    while (!is_zero) {
+        uint64_t digit = temp.divide_by_10();
+        result.push_back((char)(digit + '0')); 
+        is_zero = true;
+        for (int i = 0; i < NUM; ++i) {
+            if (temp.data_[i] != 0) {
+                is_zero = false;
+                break;
             }
         }
     }
-    return 0;
+    std::reverse(result.begin(), result.end());
+    return result;
 }
-
-uint64_t BigInt::Divide(uint64_t divisor, BigInt& quotient) const {
-
-    __uint128_t remainder = 0;
-    for (int i = 0; i < 8; ++i) {
-        __uint128_t temp = (remainder << 64) | parts[i];
-        quotient.parts[i] = static_cast<uint64_t>(temp / divisor);
-        remainder = temp % divisor;
-    }
-    return static_cast<uint64_t>(remainder);
-}
-
-void BigInt::Round() {
-        uint64_t carry = 1;
-    for (int i = 7; i >= 0 && carry; --i) {
-        uint64_t old = parts[i];
-        parts[i] = old + carry;
-        carry = (parts[i] < old);
-    }
-}
-
-void BigInt::Print() const {
-    for (int i = 0; i < 8; ++i) {
-        std::cout << std::hex << std::setw(16) << std::setfill('0') << parts[i];
-    }
-    std::cout << std::dec;
+std::mutex BigInt::BigInt::sum_mutex;
 }
