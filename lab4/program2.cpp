@@ -10,8 +10,8 @@
 #include "proizv_contract.h" 
 #include "pi_contract.h" 
 
-static constexpr auto proizv_symbol = "CalculateProizv";
-static constexpr auto pi_symbol = "CalculatePi";
+static constexpr auto proizv_symbol = "Derivative";
+static constexpr auto pi_symbol = "Pi";
 
 static constexpr auto LIB1_PROIZV = "lib/liblibrary_first.so"; 
 static constexpr auto LIB1_PI = "lib/liblibrary_leibniz.so";
@@ -19,18 +19,18 @@ static constexpr auto LIB2_PROIZV = "lib/liblibrary_second.so";
 static constexpr auto LIB2_PI = "lib/liblibrary_wallis.so";
 
 
-using ProizvFunc = float (*)(float, float);
+using DerivativeFunc = float (*)(float, float);
 using PiFunc = float (*)(int);
 
 std::unique_ptr<DynamicLibrary> proizv_lib;
 std::unique_ptr<DynamicLibrary> pi_lib;
-ProizvFunc proizv_func = nullptr;
+DerivativeFunc proizv_func = nullptr;
 PiFunc pi_func = nullptr;
 
 void load_version(const std::string& proizv_path, const std::string& pi_path) {
     proizv_lib = std::make_unique<DynamicLibrary>(proizv_path);
     pi_lib = std::make_unique<DynamicLibrary>(pi_path);
-    proizv_func = proizv_lib->getSymbolAs<ProizvFunc>(proizv_symbol);
+    proizv_func = proizv_lib->getSymbolAs<DerivativeFunc>(proizv_symbol);
     pi_func = pi_lib->getSymbolAs<PiFunc>(pi_symbol);
 }
 
@@ -65,7 +65,7 @@ int main() {
             float A, deltaX;
             if (ss >> A >> deltaX) {
                 float result = proizv_func(A, deltaX);
-                std::cout << "Proizv: " << result << std::endl;
+                std::cout << "Derivative: " << result << std::endl;
             } else {
                  std::cout << "Invalid arguments";
             }

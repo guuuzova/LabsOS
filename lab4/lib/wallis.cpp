@@ -1,8 +1,8 @@
 #include "pi_contract.h"
 
-float CalculatePi(int N) {
+float Pi(int K) {
     double pi = 1.0f;
-    for (int i = 1; i <= N; ++i) {
+    for (int i = 1; i <= K; ++i) {
         double num1 = 2.0f * i;
         double den1 = 2.0f * i - 1.0f;
         double den2 = 2.0f * i + 1.0f;

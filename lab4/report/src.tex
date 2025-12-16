@@ -1,0 +1,60 @@
+\section{Метод решения}
+
+Алгоритм решения задачи:
+
+\begin{enumerate}
+\item Создаем 2 контракта в виде заголовочных файлов:
+  \begin{itemize}
+    \item \texttt{proizv\_contract.h} --- объявление функции \texttt{float Derivative(float A, float deltaX);} для	рассчета производной функции cos(x) в точке A с приращением deltaX.
+    \item \texttt{pi\_contract.h} --- объявление функции \texttt{float Pi(int K);} для рассчета значения числа Пи при заданной длине ряда (K)
+  \end{itemize}
+
+\item Реализуются две пары динамических библиотек:
+  \begin{itemize}
+    \item \texttt{liblibrary\_first.so и liblibrary\_leibniz.so} --- первая формула для производной и ряд Лейбница.
+    \item \texttt{liblibrary\_second.so liblibrary\_wallis.so} --- вторая формула для производной и формула Валлиса.
+  \end{itemize}
+
+\item Создаем абстрактный слой для работы с динамическими библиотеками в виде заголовочного файла \texttt{dynamic\_library.h} для поддержки кроссплатформенности, реализуем под Linux:
+  \begin{itemize}
+    \item \texttt{LibHandle lib\_open(const char* path);} --- загрузка библиотеки.
+    \item \texttt{void* lib\_sym(LibHandle h, const char* name);} --- получение адреса функции по имени.
+    \item \texttt{int lib\_close(LibHandle h);} --- выгрузка библиотеки.
+  \end{itemize}
+
+\item Создаем тестовую программу №1 (\texttt{program1}), которая использует функции \texttt{Derivative} и \texttt{Pi}, линкуясь на этапе компиляции с библиотеками \texttt{liblibrary\_first.so и liblibrary\_leibniz.so}.
+
+\item Создаем тестовую программу №2 (\texttt{program2}), которая загружает библиотеки динамически во время выполнeния, используя указатели на функции.
+\end{enumerate}
+
+\vspace{2\baselineskip}
+
+\section{Описание программы}
+
+\texttt{proizv\_contract.h}, \texttt{pi\_contract.h} --- заголовочные файлы-контракты, объявляющие функции \texttt{Derivative} и \texttt{Pi}.
+
+\texttt{program1.c} --- тестовая программа №1. Использует статическую (на этапе линковки) привязку к библиотекам \texttt{library\_first.so и library\_leibniz.so}. Реализует интерфейс команд:
+\begin{itemize}
+  \item \texttt{1 A deltaX} --- вызывает \texttt{Derivative} и выводит значение производной;
+  \item \texttt{2 N} --- вызывает \texttt{Sort} и выводит значение числа pi.
+\end{itemize}
+
+\texttt{program2.c} --- тестовая программа №2. Загружает библиотеки динамически во время выполнения. Позволяет переключать реализацию по команде:
+\begin{itemize}
+  \item \texttt{0} --- переключение между двумя реализациями;
+  \item \texttt{1 A deltaX}, \texttt{2 N} --- работа с текущей реализацией контрактов.
+\end{itemize}
+
+\texttt{lib/first.cpp} --- реализация контракта для производной первой формулой.
+
+\texttt{lib/second.cpp} --- реализация контракта для производной второй формулой.
+
+\texttt{lib/leibniz.cpp} --- реализация контракта для числа пи рядом Лейбница.
+
+\texttt{lib/wallis.cpp} --- реализация контракта для числа пи формуллой Валлиса.
+
+\texttt{dynamic\_library.h} --- интерфейс работы с динамическими библиотеками.
+
+\texttt{src/dynamic\_library.cpp} --- реализация \texttt{dynamic\_library.h} для Linux с использованием функций \texttt{dlopen}, \texttt{dlsym}, \texttt{dlclose}.
+
+\texttt{CMakeLists.txt} --- файл сборки проекта, описывающий цели для библиотек и программ.

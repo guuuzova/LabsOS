@@ -1,5 +1,5 @@
 #pragma once
 
 extern "C" {
-    float CalculatePi(int N);
+    float Pi(int K);
 }
