@@ -1,0 +1,109 @@
+\section{Метод решения}
+
+Программы, реализованные для каждой лабораторной работы, запускаются с использованием strace. 
+Им подаются тестовые входные данные, ожидается завершение их работы, после чего они корректно завершаются. 
+Полученные логи сохраняются в .txt файл, указанный при запуске.
+
+\section{Описание программы}
+Все stace-выводы содержат общие строки, в которые входит стандартная инициализация программы на c/c++, они могут иметь немного расхожий вид, но логика одинаковая.
+Происходит инициализация процесса, загрузка библиотек, настройка памяти и потоков, настройка прав доступа.
+Лабораторная работа 1:
+\begin{lstlisting}
+execve("./parent", ["./parent"], 0x7ffe5a59fbb0 /* 27 vars */) = 0
+write(1, "Enter filename: ", 16) = 16
+read(0, "test.txt\n", 1024) = 9
+\end{lstlisting}
+Инициализация процесса. Пользователь вводит имя файла test.txt.
+
+\begin{lstlisting}
+pipe2([3, 4], 0) = 0
+\end{lstlisting}
+Создаётся один неименованный канал
+
+\begin{lstlisting}
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x76f66a82f690) = 1533
+\end{lstlisting}
+Создаётся дочерний процесс с PID 1533. SIGCHLD уведомляет родителя о завершении дочернего процесса.
+
+\begin{lstlisting}
+close(4) = 0
+\end{lstlisting}
+Родительский процесс закрывает конец канала на запись 
+
+\begin{lstlisting}
+read(3, "30.48\n", 255) = 6
+\end{lstlisting}
+Родитель читает из канала и получает ответ.
+
+\begin{lstlisting}
+write(1, "Answer: 30.48\n", 14) = 14
+write(1, "\n", 1) = 1
+close(3) = 0
+\end{lstlisting}
+Родитель выводит результат в свой стандартный вывод и закрывает конец канала
+
+Лабораторная работа 2:
+\begin{lstlisting}
+mmap(NULL, 8392704, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0) = 0x7a21567ff000
+mprotect(0x7a2156800000, 8388608, PROT_READ|PROT_WRITE) = 0
+\end{lstlisting}
+Выделение стека для одного потока. mmap резервирует виртуальное адресное пространство,mprotect активирует страницу виртуальной памяти.
+
+\begin{lstlisting}
+clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7a2156fff910, parent_tid=0x7a2156fff910, exit_signal=0, stack=0x7a21567ff000, stack_size=0x7fff00, tls=0x7a2156fff640} => {parent_tid=[2385]}, 88) = 2385
+rt_sigprocmask(SIG_SETMASK, [], NULL, 8) = 0
+\end{lstlisting}
+Создание потока (CLONE\_THREAD).  Общая память, файлы, сигналы (CLONE\_VM|CLONE\_FS|CLONE\_FILES|CLONE\_SIGHAND).  
+
+\begin{lstlisting}
+write(1, "00000000000000000000000000000000"..., 15700000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000
+000000000000000000000000000008Algorithm was done in: 12 ms
+) = 157
+\end{lstlisting}
+Вывод результата и времени выполнения.
+
+Лабораторная работа 3:
+\begin{lstlisting}
+openat(AT_FDCWD, "/dev/shm/lab", O_RDWR|O_CREAT|O_NOFOLLOW|O_CLOEXEC, 0666) = 3
+ftruncate(3, 1024)                      = 0
+mmap(NULL, 1024, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = 0x75e138f28000
+\end{lstlisting}
+Родительский процесс создаёт shared memory-объект.ftruncate(3, 1024) задаёт размер — 1024 байта.mmap отображает сегмент в адресное пространство процесса
+
+\begin{lstlisting}
+rt_sigaction(SIGUSR2, {sa_handler=0x6125e174a117, sa_mask=[USR2], sa_flags=SA_RESTORER|SA_RESTART, ...}, ...) = 0
+\end{lstlisting} 
+Родитель регистрирует обработчик сигнала SIGUSR2.
+
+\begin{lstlisting}
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x75e138ec6690) = 940
+\end{lstlisting} 
+Создаётся дочерний процесс
+
+\begin{lstlisting}
+pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
+--- SIGUSR2 {si_signo=SIGUSR2, si_code=SI_USER, si_pid=940, si_uid=1000} ---
+rt_sigreturn({mask=[]})                 = -1 EINTR (Interrupted system call)
+--- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=940, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+write(1, "Answer: 30.000000\n", 18)     = 18
+wait4(940, [{WIFEXITED(s) && WEXITSTATUS(s) == 0}], 0, NULL) = 940
+munmap(0x75e138f28000, 1024)            = 0
+close(3)                                = 0
+unlink("/dev/shm/lab")                  = 0
+\end{lstlisting}
+Родитель блокируется до получения любого сигнала. Сигнал используется именно для синхронизации: он уведомляет родителя, что данные в shared memory готовы к чтению.Родитель читает результат из отображённой памяти.munmap — отвязывает shared memory, close — закрывает файловый дескриптор, unlink — удаляет объект, освобождая ресурс 
+
+Лабораторная работа 4:
+Program1
+\begin{lstlisting}
+openat(AT_FDCWD, "/home/guuuzova_v/oslab/LabsOS/lab4/lib/liblibrary_first.so", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\0...", 832) = 832
+newfstatat(3, "", {st_mode=S_IFREG|0755, st_size=15536, ...}, AT_EMPTY_PATH) = 0
+mmap(NULL, 16440, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7226b58a3000
+mmap(0x7226b58a4000, 4096, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1000) = 0x7226b58a4000
+mmap(0x7226b58a5000, 4096, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x2000) = 0x7226b58a5000
+mmap(0x7226b58a6000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x2000) = 0x7226b58a6000
+close(3) = 0
+\end{lstlisting}
+Программа автоматически загружает liblibrary\_first.so сразу после старта. Вся загрузка библиотек выполняется динамическим загрузчиком ОС до начала выполнения вашего кода main.
